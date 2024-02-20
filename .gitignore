@@ -163,3 +163,4 @@ cython_debug/
 .upm/
 .replit
 *.db
+credentials.py
