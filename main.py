@@ -1,19 +1,20 @@
 #module downloads; easy-pil, pytz
 #standard library imports
 #third party imports
-import discord
+import os, discord
 from discord.ext import commands
 #local application imports
-import credentials
+from dotenv import load_dotenv
 from cogs.welcome import Welcome
 from cogs.statusmodal import StatusChangeModal, get_status_data, statusbanner
 #import asyncpg
+
+load_dotenv()
 
 intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
 muwubot = commands.Bot(command_prefix="!", intents=intents)
-
 
 @muwubot.event
 async def on_ready():
@@ -21,7 +22,6 @@ async def on_ready():
   await muwubot.load_extension("cogs.statusmodal")
   await muwubot.load_extension("cogs.gamble")
   print("MuwuBot is Online")
-
 
 @muwubot.tree.command(name="update_status",
                       description="update your bio and status")
@@ -42,7 +42,6 @@ async def status(context, member: discord.Member = None):
       await context.reply(f"The status for {member.mention} is not available.")
 
 
-
 if __name__ == "__main__":
   #load personal credentials
-  muwubot.run(credentials.TOKEN)
+  muwubot.run(os.environ['TOKEN'])
