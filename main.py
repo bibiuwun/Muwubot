@@ -3,8 +3,9 @@
 #third party imports
 import os, discord
 from discord.ext import commands
-#local application imports
 from dotenv import load_dotenv
+
+#local application imports
 from cogs.welcome import Welcome
 from cogs.statusmodal import StatusChangeModal, get_status_data, statusbanner
 #import asyncpg
