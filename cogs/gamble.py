@@ -83,7 +83,7 @@ class Gamble(commands.Cog):
 
   @commands.command()
   @commands.cooldown(1, 2.5, commands.BucketType.user)  # once every 2.5 sec
-  async def gamble(self, ctx, amount: int | str, percent: int = 60):
+  async def gamble(self, ctx, amount: int | str, percent: int = 50):
     player = ctx.author
     player_balance = _get_player_balance(player.id)
     
@@ -106,7 +106,7 @@ class Gamble(commands.Cog):
       
     if player_balance <= 0 or amount > player_balance:
       await ctx.reply(embed=discord.Embed(
-        description="⚠️ You don't have enough {CURRENCY}.",
+        description=f"⚠️ You don't have enough {CURRENCY}.",
         color=discord.Color.gold()
         ))
       return
