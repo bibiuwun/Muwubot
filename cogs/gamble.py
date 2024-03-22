@@ -4,8 +4,6 @@ import os
 import random
 import discord
 from discord.ext import commands
-
-# from easy_pil import Editor, load_image_async, Font, Canvas
 from dotenv import load_dotenv
 from pymongo import MongoClient, ReturnDocument
 
@@ -15,10 +13,14 @@ CLIENT = MongoClient(os.environ["MONGODB_URI"])
 
 # initialize db collection
 DB = CLIENT["muwu_data"]
-BALANCES = DB["balances"]
+USERS = DB["users"]
+BALANCES = DB["test_balances"]
 SERVERS = DB["servers"]
 
-CURRENCY = "nuggies"
+# customization options
+CURRENCY: str = "nuggies"
+MIN_BEG: int = 0
+MAX_BEG: int = 150
 
 
 class Gamble(commands.Cog):
@@ -29,7 +31,7 @@ class Gamble(commands.Cog):
     @commands.cooldown(1, 30, commands.BucketType.user)  # once every 30 sec
     async def beg(self, ctx):
         player = ctx.author
-        earnings = random.randrange(0, 151)
+        earnings = random.randrange(MIN_BEG, MAX_BEG + 1)
         if earnings == 0:
             await ctx.reply(
                 embed=discord.Embed(
@@ -173,7 +175,7 @@ class Gamble(commands.Cog):
             raise error
 
     @commands.command()
-    async def give(self, ctx, amount: int | str, target: discord.Member):
+    async def give(self, ctx, target: discord.Member, amount: int | str):
         player = ctx.author
         if target == ctx.author:
             await ctx.reply(
@@ -223,16 +225,34 @@ class Gamble(commands.Cog):
             )
         )
 
-    # TODO: daily/weekly lottery system
-    @commands.command()
-    async def lottery(self, ctx, action: str = None):
-        player = ctx.author
-        if action == None:
-            # TODO: show lottery info, pot size, ending date/time, # of participants
-            pass
-        elif action.lower() == "join":
-            # TODO: user joins lottery, increase pot size (with conditions)
-            pass
+    @give.error
+    async def give_error(self, ctx, error):
+        if isinstance(error, commands.MemberNotFound):
+            await ctx.reply(
+                embed=discord.Embed(
+                    description=f"⚠️ Usage: !give <@user> <amount | all>",
+                    color=discord.Color.gold(),
+                )
+            )
+        else:
+            await ctx.reply(f"{error}")
+            raise error
+
+    # TODO: daily raffle system
+    # @commands.command()
+    # async def raffle(self, ctx, action: str = None):
+    #    player = ctx.author
+    #    if action == None:
+    #        # TODO: show raffle info, pot size, ending date/time, # of participants
+    #        pass
+    #    elif action.lower() == "join":
+    #        # TODO: user joins raffle, increase pot size (with conditions)
+    #        pass
+
+    # TODO: weekly lottery system
+    # @commands.command()
+    # async def lottery(self, ctx, action: str = None):
+    #    pass
 
 
 ###########################
@@ -248,13 +268,13 @@ async def setup(bot):
 
 # return player's balance, create document if no player exists in db
 def _get_player_balance(user_id: int) -> int:
-    query = BALANCES.find_one_and_update(
+    balance_query = BALANCES.find_one_and_update(
         {"_id": user_id},
         {"$setOnInsert": {"balance": 0}},
         upsert=True,
         return_document=ReturnDocument.AFTER,
     )
-    return query["balance"]
+    return balance_query["balance"]
 
 
 # increment player's balance by earnings and return it, create document if no player exists in db
@@ -273,20 +293,21 @@ def _get_global_leaderboard() -> list[(int, int)]:
     cursor = BALANCES.find().sort("balance", -1).limit(5)
     output = []
     for document in cursor:
-        output.append((document["user_id"], document["balance"]))
+        output.append((document["_id"], document["balance"]))
     cursor.close()
     return output
 
 
+def _get_server(server: discord.Guild):
+    query = SERVERS.find_one_and_update(
+        {"server_id": server.id},
+        {"$setOnInsert": server.id},
+        upsert=True,
+        return_document=ReturnDocument.AFTER,
+    )
+
+
 # TODO: finish below functions
-# def _get_server_info(server_id: int):
-#  query = SERVERS.find_one_and_update(
-#    {"_id": server_id},
-#    {"$setOnInsert": server_id},
-#    upsert=True,
-#    return_document=ReturnDocument.AFTER
-#  )
-#
 # def _get_server_leaderboard(server_id: int) -> list[(int, int)]:
 #  query = SERVERS.find_one_and_update(
 #    {"_id": server_id},
@@ -294,3 +315,12 @@ def _get_global_leaderboard() -> list[(int, int)]:
 #    upsert=True,
 #    return_document=ReturnDocument.AFTER
 #  )
+
+
+# def _get_server_raffle(server: discord.Guild):
+#    query = SERVERS.find_one_and_update(
+#        {"server_id": server.id},
+#        {"$setOnInsert": server.id},
+#        upsert=True,
+#        return_document=ReturnDocument.AFTER,
+#    )
