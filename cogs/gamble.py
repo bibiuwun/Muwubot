@@ -239,15 +239,15 @@ class Gamble(commands.Cog):
             raise error
 
     # TODO: daily raffle system
-    # @commands.command()
-    # async def raffle(self, ctx, action: str = None):
-    #    player = ctx.author
-    #    if action == None:
-    #        # TODO: show raffle info, pot size, ending date/time, # of participants
-    #        pass
-    #    elif action.lower() == "join":
-    #        # TODO: user joins raffle, increase pot size (with conditions)
-    #        pass
+    @commands.command()
+    async def raffle(self, ctx, action: str = None):
+       player = ctx.author
+       if action == None:
+           # TODO: show raffle info, pot size, ending date/time, # of participants
+           pass
+       elif action.lower() == "join":
+           # TODO: user joins raffle, increase pot size (with conditions)
+           pass
 
     # TODO: weekly lottery system
     # @commands.command()
@@ -298,10 +298,10 @@ def _get_global_leaderboard() -> list[(int, int)]:
     return output
 
 
-def _get_server(server: discord.Guild):
-    query = SERVERS.find_one_and_update(
-        {"server_id": server.id},
-        {"$setOnInsert": server.id},
+def _get_server_raffle(server: discord.Guild):
+    query = SERVERS.find_one(
+        {"_id": server.id},
+        {"$setOnInsert": {"raffle": {"ongoing": False}}},
         upsert=True,
         return_document=ReturnDocument.AFTER,
     )
@@ -315,12 +315,3 @@ def _get_server(server: discord.Guild):
 #    upsert=True,
 #    return_document=ReturnDocument.AFTER
 #  )
-
-
-# def _get_server_raffle(server: discord.Guild):
-#    query = SERVERS.find_one_and_update(
-#        {"server_id": server.id},
-#        {"$setOnInsert": server.id},
-#        upsert=True,
-#        return_document=ReturnDocument.AFTER,
-#    )
