@@ -14,7 +14,7 @@ CLIENT = MongoClient(os.environ["MONGODB_URI"])
 # initialize db collection
 DB = CLIENT["muwu_data"]
 USERS = DB["users"]
-BALANCES = DB["test_balances"]
+BALANCES = DB["balances"]
 SERVERS = DB["servers"]
 
 # customization options
