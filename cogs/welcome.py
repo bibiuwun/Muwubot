@@ -28,5 +28,5 @@ class Welcome(commands.Cog):
     file = discord.File(fp=background.image_bytes, filename="whalecum.jpg")
     await channel.send(file=file)
 
-async def setup(bot):
-  await bot.add_cog(Welcome(bot))
+def setup(bot):
+  bot.add_cog(Welcome(bot))
