@@ -1,5 +1,3 @@
-"""Muwubot gambling functionality"""
-
 import os
 import random
 import discord
@@ -13,12 +11,12 @@ CLIENT = MongoClient(os.environ["MONGODB_URI"])
 
 # initialize db collection
 DB = CLIENT["muwu_data"]
-USERS = DB["users"]
 BALANCES = DB["balances"]
 SERVERS = DB["servers"]
 
 # customization options
 CURRENCY: str = "nuggies"
+CURRENCY_SINGULAR: str = "nuggie"
 MIN_BEG: int = 0
 MAX_BEG: int = 150
 
@@ -27,13 +25,13 @@ class Gamble(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @commands.command()
+    @discord.slash_command(description=f"Beg for some {CURRENCY}")
     @commands.cooldown(1, 30, commands.BucketType.user)  # once every 30 sec
     async def beg(self, ctx):
         player = ctx.author
         earnings = random.randrange(MIN_BEG, MAX_BEG + 1)
         if earnings == 0:
-            await ctx.reply(
+            await ctx.respond(
                 embed=discord.Embed(
                     description=f"<a:NOPERS:1219751360946372658> Nobody gave you {CURRENCY}. Better luck next time.",
                     color=discord.Color.brand_red(),
@@ -41,7 +39,7 @@ class Gamble(commands.Cog):
             )
             return
         player_balance = _update_player_balance(player.id, earnings)
-        await ctx.reply(
+        await ctx.respond(
             embed=discord.Embed(
                 description=f"🪙 Received `{earnings}` {CURRENCY}!! You now have `{player_balance}` {CURRENCY}.",
                 color=discord.Color.brand_green(),
@@ -51,30 +49,30 @@ class Gamble(commands.Cog):
     @beg.error
     async def beg_error(self, ctx, error):
         if isinstance(error, commands.CommandOnCooldown):
-            await ctx.reply(
+            await ctx.respond(
                 embed=discord.Embed(
                     description=f"⏳ On cooldown. Try again in {error.retry_after:.2f}s.",
                     color=discord.Color.gold(),
                 )
             )
         else:
-            await ctx.reply(f"{error}")
+            await ctx.respond(f"{error}")
             raise error
 
-    @commands.command(aliases=["nuggies", "nugs", "balance", "bal"])
-    async def check_balance(self, ctx, player: discord.Member = None):
+    @discord.slash_command(description=f"Get your balance in {CURRENCY}")
+    async def balance(self, ctx, player: discord.Member = None):
         if player is None:
             player = ctx.author
         player_balance = _get_player_balance(player.id)
         if player_balance == 0:
-            await ctx.reply(
+            await ctx.respond(
                 embed=discord.Embed(
                     description=f"⚠️ {player.display_name} has no {CURRENCY}! Type `!beg` to get started!",
                     color=discord.Color.gold(),
                 )
             )
         else:
-            await ctx.reply(
+            await ctx.respond(
                 embed=discord.Embed(
                     description=f"💰 {player.display_name} has `{player_balance}` {CURRENCY}!",
                     color=discord.Color.brand_green(),
@@ -82,7 +80,7 @@ class Gamble(commands.Cog):
             )
 
     # TODO: design data model and rework helper function to display only server members
-    @commands.command(aliases=["lb", "nuggieboard"])
+    @discord.slash_command(description=f"View the top 5 {CURRENCY_SINGULAR} balances")
     async def leaderboard(self, ctx):  # limit 5
         # server_id = ctx.guild.id
         leaderboard = _get_global_leaderboard()
@@ -108,11 +106,11 @@ class Gamble(commands.Cog):
                 value=f"> {balance} {CURRENCY.lower()}",
                 inline=False,
             )
-        await ctx.reply(embed=embed)
+        await ctx.respond(embed=embed)
 
-    @commands.command()
+    @discord.slash_command(description=f"Gamble away your {CURRENCY_SINGULAR} life savings")
     @commands.cooldown(1, 2.5, commands.BucketType.user)  # once every 2.5 sec
-    async def gamble(self, ctx, amount: int | str, percent: int = 50):
+    async def gamble(self, ctx, amount: int):
         player = ctx.author
         player_balance = _get_player_balance(player.id)
 
@@ -120,7 +118,7 @@ class Gamble(commands.Cog):
             if amount.lower() == "all":
                 amount = player_balance
             else:
-                await ctx.reply(
+                await ctx.respond(
                     embed=discord.Embed(
                         description="⚠️ Invalid amount.", color=discord.Color.gold()
                     )
@@ -128,7 +126,7 @@ class Gamble(commands.Cog):
                 return
         elif isinstance(amount, int):
             if amount <= 0:
-                await ctx.reply(
+                await ctx.respond(
                     embed=discord.Embed(
                         description="⚠️ Invalid amount.", color=discord.Color.gold()
                     )
@@ -136,7 +134,7 @@ class Gamble(commands.Cog):
                 return
 
         if player_balance <= 0 or amount > player_balance:
-            await ctx.reply(
+            await ctx.respond(
                 embed=discord.Embed(
                     description=f"⚠️ You don't have enough {CURRENCY}.",
                     color=discord.Color.gold(),
@@ -146,7 +144,7 @@ class Gamble(commands.Cog):
         dice = random.randrange(2)  # 50-50
         if dice == 1:  # win
             new_balance = _update_player_balance(player.id, amount)
-            await ctx.reply(
+            await ctx.respond(
                 embed=discord.Embed(
                     description=f"💸 You win `{amount}` {CURRENCY}! You now have `{new_balance}` {CURRENCY}.",
                     color=discord.Color.brand_green(),
@@ -154,7 +152,7 @@ class Gamble(commands.Cog):
             )
         else:  # lose
             new_balance = _update_player_balance(player.id, -amount)
-            await ctx.reply(
+            await ctx.respond(
                 embed=discord.Embed(
                     description=f"💢 You lose `{amount}` {CURRENCY}! You now have `{new_balance}` {CURRENCY}.",
                     color=discord.Color.brand_red(),
@@ -164,21 +162,23 @@ class Gamble(commands.Cog):
     @gamble.error
     async def gamble_error(self, ctx, error):
         if isinstance(error, commands.CommandOnCooldown):
-            await ctx.reply(
+            await ctx.respond(
                 embed=discord.Embed(
                     description=f"⏳ On cooldown. Try again in {error.retry_after:.2f}s.",
                     color=discord.Color.gold(),
                 )
             )
         else:
-            await ctx.reply(f"{error}")
+            await ctx.respond(f"{error}")
             raise error
 
-    @commands.command()
+    @discord.slash_command(description=f"Give {CURRENCY} to another user")
+    @discord.commands.option(name="target", type=discord.Member)
+    @discord.commands.option(name="amount", type=int or str)
     async def give(self, ctx, target: discord.Member, amount: int | str):
         player = ctx.author
         if target == ctx.author:
-            await ctx.reply(
+            await ctx.respond(
                 embed=discord.Embed(
                     description=f"⚠️ You can't give yourself {CURRENCY}!",
                     color=discord.Color.gold(),
@@ -192,7 +192,7 @@ class Gamble(commands.Cog):
             if amount.lower() == "all":
                 amount = player_balance
             else:
-                await ctx.reply(
+                await ctx.respond(
                     embed=discord.Embed(
                         description="⚠️ Invalid amount.", color=discord.Color.gold()
                     )
@@ -200,7 +200,7 @@ class Gamble(commands.Cog):
                 return
         elif isinstance(amount, int):
             if amount <= 0:
-                await ctx.reply(
+                await ctx.respond(
                     embed=discord.Embed(
                         description="⚠️ Invalid amount.", color=discord.Color.gold()
                     )
@@ -208,7 +208,7 @@ class Gamble(commands.Cog):
                 return
 
         if player_balance <= 0 or amount > player_balance:
-            await ctx.reply(
+            await ctx.respond(
                 embed=discord.Embed(
                     description="⚠️ You don't have enough {CURRENCY}.",
                     color=discord.Color.gold(),
@@ -219,7 +219,7 @@ class Gamble(commands.Cog):
         new_player_balance = _update_player_balance(player.id, -amount)
         _update_player_balance(target.id, amount)
 
-        await ctx.reply(
+        await ctx.respond(
             embed=discord.Embed(
                 description=f"📩 Gave `{amount}` {CURRENCY} to {target.display_name}! You now have `{new_player_balance}` {CURRENCY}."
             )
@@ -228,14 +228,14 @@ class Gamble(commands.Cog):
     @give.error
     async def give_error(self, ctx, error):
         if isinstance(error, commands.MemberNotFound):
-            await ctx.reply(
+            await ctx.respond(
                 embed=discord.Embed(
                     description=f"⚠️ Usage: !give <@user> <amount | all>",
                     color=discord.Color.gold(),
                 )
             )
         else:
-            await ctx.reply(f"{error}")
+            await ctx.respond(f"{error}")
             raise error
 
     # TODO: daily raffle system
@@ -298,16 +298,15 @@ def _get_global_leaderboard() -> list[(int, int)]:
     return output
 
 
-def _get_server_raffle(server: discord.Guild):
-    query = SERVERS.find_one(
-        {"_id": server.id},
-        {"$setOnInsert": {"raffle": {"ongoing": False}}},
-        upsert=True,
-        return_document=ReturnDocument.AFTER,
-    )
-
-
 # TODO: finish below functions
+#def _get_server_raffle(server: discord.Guild):
+#    query = SERVERS.find_one(
+#        {"_id": server.id},
+#        {"$setOnInsert": {"raffle": {"ongoing": False}}},
+#        upsert=True,
+#        return_document=ReturnDocument.AFTER,
+#    )
+
 # def _get_server_leaderboard(server_id: int) -> list[(int, int)]:
 #  query = SERVERS.find_one_and_update(
 #    {"_id": server_id},
