@@ -6,11 +6,11 @@ authors = ["Vivian Luong, Andrew Le"]
 
 [tool.poetry.dependencies]
 python = ">=3.10.0,<4"
-discord-py = "^2.3.2"
 easy-pil = "^0.3.3"
 pytz = "^2024.1"
 pymongo = "^4.6.2"
 python-dotenv = "^1.0.1"
+pycord = "^0.1.1"
 
 [tool.pyright]
 # https://github.com/microsoft/pyright/blob/main/docs/configuration.md
