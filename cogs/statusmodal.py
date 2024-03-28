@@ -1,130 +1,160 @@
+import os
+import io
 import discord
 from discord.ext import commands
 from easy_pil import Editor, load_image_async, Font, Canvas
 from datetime import datetime
 from pytz import timezone
-import io
-import sqlite3
+from dotenv import load_dotenv
+from pymongo import MongoClient, ReturnDocument
+
+# connect to MongoDB cluster
+load_dotenv()
+CLIENT = MongoClient(os.environ["MONGODB_URI"])
+
+# initialize db collection
+DB = CLIENT["muwu_data"]
+USERS = DB["users"]
+
+class Status(commands.Cog):
+
+    def __init__(self, bot):
+        self.bot = bot
+
+    @discord.slash_command()
+    async def updatestatus(self, ctx):
+        await ctx.send_modal(StatusUpdateModal())
+
+    @discord.slash_command()
+    async def updatebio(self, ctx):
+        await ctx.send_modal(BioUpdateModal())
+
+    @discord.slash_command()
+    async def status(self, ctx, member: discord.Member = None):
+        if member is None:
+            member = ctx.author
+
+        user_data = _get_status(member.id)
+        background = Editor("./imgs/sanrio.png")
+        
+        # fonts
+        status_username = Font.poppins(variant="bold", size=38)
+        status_info = Font.poppins(size=30)
+        status_timestamp = Font.poppins(variant="italic", size=20)
+        
+        profile_picture = await load_image_async(str(member.display_avatar.url))
+        profile = Editor(profile_picture).resize((150, 150)).circle_image()
+        background.paste(profile, (30, 30))
+        background.ellipse((30, 30), 150, 150, outline="#e0c3a4", stroke_width=2)
+        background.text(
+            (200, 50),
+            f"{member.display_name}",
+            font=status_username,
+            color="white"
+        )
+        background.text(
+            (200, 125),
+            f"Status: {user_data["status"]}",
+            font=status_info,
+            color="#FFFFFF"
+        )
+        background.text(
+            (200, 175),
+            f"Bio: {user_data["bio"]}",
+            font=status_info,
+            color="#FFFFFF"
+        )
+        background.rectangle((200, 100), width=350, height=2, fill="#FFFFFF")
+        background.text(
+            (200, 235),
+            f"Last Modified: {user_data["timestamp"]}",
+            font=status_timestamp,
+            color="#FFFFFF"
+        )
+        with io.BytesIO() as image_binary:
+            background.image.save(image_binary, format="PNG")
+            image_binary.seek(0)
+            file = discord.File(fp=image_binary, filename="status_banner.png")
+            await ctx.respond(file=file)
+        
+
+class StatusUpdateModal(discord.ui.Modal):
+
+    def __init__(self):
+        super().__init__(title="Set a status")
+        self.emStatus = discord.ui.InputText(
+            label="Status",
+            min_length=1,
+            max_length=40,
+            required=True,
+            placeholder="What's poppin?",
+            style=discord.InputTextStyle.short
+        )
+        self.add_item(self.emStatus)
+
+    async def callback(self, interaction: discord.Interaction):
+        timePST = timezone("US/Pacific")
+        timePSTnow = datetime.now(timePST)
+        time_str = timePSTnow.strftime("%m/%d/%Y %H:%M:%S %Z")
+        _set_status(interaction.user.id, self.emStatus.value, time_str)
+        await interaction.response.send_message(
+            embed=discord.Embed(
+                description="Updated your status! Check your status with `/status`",
+                color=discord.Color.random(),
+            ),
+            ephemeral=True,
+        )
 
 
-class StatusChangeModal(discord.ui.Modal):
+class BioUpdateModal(discord.ui.Modal):
 
-  def __init__(self):
-    super().__init__(title="Status Changer")
-    self.emStatus = discord.ui.TextInput(
-        label="Status",
-        min_length=1,
-        max_length=40,
-        required=True,
-        placeholder="short status description",
-        style=discord.TextStyle.short)
-    self.add_item(self.emStatus)
-    self.emBio = discord.ui.TextInput(label="Description",
-                                      min_length=1,
-                                      max_length=45,
-                                      required=True,
-                                      placeholder="short about me",
-                                      style=discord.TextStyle.short)
-    self.add_item(self.emBio)
+    def __init__(self):
+        super().__init__(title="Set a user bio")
+        self.emBio = discord.ui.InputText(
+            label="Description",
+            min_length=1,
+            max_length=45,
+            required=True,
+            placeholder="About me",
+            style=discord.InputTextStyle.short
+        )
+        self.add_item(self.emBio)
 
-  async def on_submit(self, interaction: discord.Interaction):
-    timePST = timezone('US/Pacific')
-    timePSTnow = datetime.now(timePST)
-    time_str = timePSTnow.strftime('%m/%d/%Y %H:%M:%S %Z')
-    print(f"Status: {self.emStatus.value}")
-    print(f"Bio: {self.emBio.value}")
-    print(f"Bio: {time_str}")
-    await add_status(interaction.user.mention, self.emStatus.value,
-                     self.emBio.value, time_str)
-    await interaction.response.send_message(
-        "Your status is updated. Use <!status @user>", ephemeral=True)
+    async def callback(self, interaction: discord.Interaction):
+        _set_bio(interaction.user.id, self.emBio.value)
+        await interaction.response.send_message(
+            embed=discord.Embed(
+                description="Updated your bio! Check your status with `/status`",
+                color=discord.Color.random(),
+            ),
+            ephemeral=True,
+        )
 
-
-class StatusModalCog(commands.Cog):
-
-  def __init__(self, bot):
-    self.bot = bot
-
-  @commands.command(name="changestatus")
-  async def change_status(self, ctx):
-    modal = StatusChangeModal()
-    await ctx.send_modal(modal)
-
-
-async def setup(bot):
-  await bot.add_cog(StatusModalCog(bot))
+def setup(bot):
+    bot.add_cog(Status(bot))
 
 
 ##########################
-#DB Helper Functions
-async def add_status(user, status='', bio='', timestamp=''):
-  user = user[2:-1]
-  conn = sqlite3.connect('uwustatus.db')
-  c = conn.cursor()
-  c.execute('''
-    CREATE TABLE IF NOT EXISTS statuses (
-      user_id TEXT PRIMARY KEY,
-      Status TEXT,
-      Bio TEXT,
-      Timestamp TEXT
+# MONGODB HELPER FUNCTIONS
+
+
+def _set_status(user_id: int, status: str, timestamp: str) -> None:
+    USERS.find_one_and_update(
+        {"_id": user_id},
+        {"$set": {"status": status, "timestamp": timestamp}},
+        upsert=True,
     )
-  ''')
-  c.execute(
-      '''
-      INSERT INTO statuses (user_id, Status, Bio, Timestamp) 
-      VALUES (?, ?, ?, ?)
-      ON CONFLICT(user_id) 
-      DO UPDATE SET Status=excluded.Status, Bio=excluded.Bio, Timestamp=excluded.Timestamp''',
-      (user, status, bio, timestamp))
-  conn.commit()
-  conn.close()
-  return True
 
 
-async def get_status_data():
-  conn = sqlite3.connect('uwustatus.db')
-  c = conn.cursor()
-  c.execute('SELECT * FROM statuses')
-  statuses = {
-      row[0]: {
-          'Status': row[1],
-          'Bio': row[2],
-          'Timestamp': row[3]
-      }
-      for row in c.fetchall()
-  }
-  conn.close()
-  return statuses
+def _set_bio(user_id: int, bio: str) -> None:
+    USERS.find_one_and_update({"_id": user_id}, {"$set": {"bio": bio}}, upsert=True)
 
 
-async def statusbanner(text, member, user_data):
-  background = Editor("./imgs/sanrio.png")
-  poppins_large = Font.poppins(size=38)
-  poppins_medium = Font.poppins(size=30)
-  poppins_small = Font.poppins(size=25)
-  profile_picture = await load_image_async(str(member.display_avatar.url))
-  profile = Editor(profile_picture).resize((150, 150)).circle_image()
-  background.paste(profile, (30, 30))
-  background.ellipse((30, 30), 150, 150, outline="#e0c3a4", stroke_width=2)
-  background.text((200, 50),
-                  f"{member.display_name}",
-                  font=poppins_large,
-                  color="white")
-  background.text((200, 125),
-                  f"Status: {user_data['Status']}",
-                  font=poppins_medium,
-                  color="#FFFFFF")
-  background.text((200, 175),
-                  f"Bio: {user_data['Bio']}",
-                  font=poppins_medium,
-                  color="#FFFFFF")
-  background.rectangle((200, 100), width=350, height=2, fill="#FFFFFF")
-  background.text((200, 235),
-                  f"Last Modified: {user_data['Timestamp']}",
-                  font=Font.poppins(size=25),
-                  color="#FFFFFF")
-  with io.BytesIO() as image_binary:
-    background.image.save(image_binary, format="PNG")
-    image_binary.seek(0)
-    file = discord.File(fp=image_binary, filename="status_banner.png")
-    await text.send(file=file)
+def _get_status(user_id: int) -> dict:
+    query = USERS.find_one_and_update(
+        {"_id": user_id},
+        {"$setOnInsert": {"status": "", "bio": "No bio set.", "timestamp": "N/A"}},
+        upsert=True,
+        return_document=ReturnDocument.AFTER,
+    )
+    return {"status": query["status"], "bio": query["bio"], "timestamp": query["timestamp"]}
