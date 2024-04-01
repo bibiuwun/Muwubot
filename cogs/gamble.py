@@ -1,7 +1,7 @@
 import os
 import random
 import discord
-from discord.ext import commands
+from discord.ext import bridge, commands
 from dotenv import load_dotenv
 from pymongo import MongoClient, ReturnDocument
 
@@ -25,7 +25,7 @@ class Gamble(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @discord.slash_command(description=f"Beg for some {CURRENCY}")
+    @bridge.bridge_command(description=f"Beg for some {CURRENCY}")
     @commands.cooldown(1, 30, commands.BucketType.user)  # once every 30 sec
     async def beg(self, ctx):
         player = ctx.author
@@ -59,7 +59,7 @@ class Gamble(commands.Cog):
             await ctx.respond(f"{error}")
             raise error
 
-    @discord.slash_command(description=f"Get your balance in {CURRENCY}")
+    @bridge.bridge_command(description=f"Get your balance in {CURRENCY}")
     async def balance(self, ctx, player: discord.Member = None):
         if player is None:
             player = ctx.author
@@ -80,7 +80,7 @@ class Gamble(commands.Cog):
             )
 
     # TODO: design data model and rework helper function to display only server members
-    @discord.slash_command(description=f"View the top 5 {CURRENCY_SINGULAR} balances")
+    @bridge.bridge_command(description=f"View the top 5 {CURRENCY_SINGULAR} balances")
     async def leaderboard(self, ctx):  # limit 5
         # server_id = ctx.guild.id
         leaderboard = _get_global_leaderboard()
@@ -108,7 +108,7 @@ class Gamble(commands.Cog):
             )
         await ctx.respond(embed=embed)
 
-    @discord.slash_command(description=f"Gamble away your {CURRENCY_SINGULAR} life savings")
+    @bridge.bridge_command(description=f"Gamble away your {CURRENCY_SINGULAR} life savings")
     @commands.cooldown(1, 2.5, commands.BucketType.user)  # once every 2.5 sec
     async def gamble(self, ctx, amount: int):
         player = ctx.author
@@ -172,10 +172,8 @@ class Gamble(commands.Cog):
             await ctx.respond(f"{error}")
             raise error
 
-    @discord.slash_command(description=f"Give {CURRENCY} to another user")
-    @discord.commands.option(name="target", type=discord.Member)
-    @discord.commands.option(name="amount", type=int or str)
-    async def give(self, ctx, target: discord.Member, amount: int | str):
+    @bridge.bridge_command(description=f"Give {CURRENCY} to another user")
+    async def give(self, ctx, target: discord.Member, amount: int):
         player = ctx.author
         if target == ctx.author:
             await ctx.respond(

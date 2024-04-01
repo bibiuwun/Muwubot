@@ -1,5 +1,5 @@
 import os, discord
-from discord.ext import commands
+from discord.ext import commands, bridge
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -9,7 +9,7 @@ INTENTS = discord.Intents.default()
 INTENTS.members = True
 INTENTS.message_content = True
 
-muwubot = commands.Bot(command_prefix="!", intents=INTENTS)
+muwubot = bridge.Bot(command_prefix="!", intents=INTENTS)
 for cog in COGS:
     muwubot.load_extension(f"cogs.{cog}")
 
