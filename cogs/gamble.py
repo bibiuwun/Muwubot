@@ -108,9 +108,11 @@ class Gamble(commands.Cog):
             )
         await ctx.respond(embed=embed)
 
-    @bridge.bridge_command(description=f"Gamble away your {CURRENCY_SINGULAR} life savings")
+    @bridge.bridge_command(
+        description=f"Gamble away your life savings of {CURRENCY_SINGULAR}"
+    )
     @commands.cooldown(1, 2.5, commands.BucketType.user)  # once every 2.5 sec
-    async def gamble(self, ctx, amount: int):
+    async def gamble(self, ctx, amount):
         player = ctx.author
         player_balance = _get_player_balance(player.id)
 
@@ -132,6 +134,13 @@ class Gamble(commands.Cog):
                     )
                 )
                 return
+        else:
+            await ctx.respond(
+                embed=discord.Embed(
+                    description="⚠️ Invalid amount.", color=discord.Color.gold()
+                )
+            )
+            return
 
         if player_balance <= 0 or amount > player_balance:
             await ctx.respond(
@@ -173,7 +182,7 @@ class Gamble(commands.Cog):
             raise error
 
     @bridge.bridge_command(description=f"Give {CURRENCY} to another user")
-    async def give(self, ctx, target: discord.Member, amount: int):
+    async def give(self, ctx, target: discord.Member, amount):
         player = ctx.author
         if target == ctx.author:
             await ctx.respond(
@@ -204,6 +213,13 @@ class Gamble(commands.Cog):
                     )
                 )
                 return
+        else:
+            await ctx.respond(
+                embed=discord.Embed(
+                    description="⚠️ Invalid amount.", color=discord.Color.gold()
+                )
+            )
+            return
 
         if player_balance <= 0 or amount > player_balance:
             await ctx.respond(
@@ -237,15 +253,15 @@ class Gamble(commands.Cog):
             raise error
 
     # TODO: daily raffle system
-    @commands.command()
-    async def raffle(self, ctx, action: str = None):
-       player = ctx.author
-       if action == None:
-           # TODO: show raffle info, pot size, ending date/time, # of participants
-           pass
-       elif action.lower() == "join":
-           # TODO: user joins raffle, increase pot size (with conditions)
-           pass
+    # @commands.command()
+    # async def raffle(self, ctx, action: str = None):
+    #     player = ctx.author
+    #     if action == None:
+    #         # TODO: show raffle info, pot size, ending date/time, # of participants
+    #         pass
+    #     elif action.lower() == "join":
+    #         # TODO: user joins raffle, increase pot size (with conditions)
+    #         pass
 
     # TODO: weekly lottery system
     # @commands.command()
@@ -297,7 +313,7 @@ def _get_global_leaderboard() -> list[(int, int)]:
 
 
 # TODO: finish below functions
-#def _get_server_raffle(server: discord.Guild):
+# def _get_server_raffle(server: discord.Guild):
 #    query = SERVERS.find_one(
 #        {"_id": server.id},
 #        {"$setOnInsert": {"raffle": {"ongoing": False}}},
