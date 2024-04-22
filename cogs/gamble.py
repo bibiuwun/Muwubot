@@ -119,15 +119,9 @@ class Gamble(commands.Cog):
         if isinstance(amount, str):
             if amount.lower() == "all":
                 amount = player_balance
+            elif amount.isdigit():
+                amount = int(amount)
             else:
-                await ctx.respond(
-                    embed=discord.Embed(
-                        description="⚠️ Invalid amount.", color=discord.Color.gold()
-                    )
-                )
-                return
-        elif isinstance(amount, int):
-            if amount <= 0:
                 await ctx.respond(
                     embed=discord.Embed(
                         description="⚠️ Invalid amount.", color=discord.Color.gold()
@@ -198,15 +192,9 @@ class Gamble(commands.Cog):
         if isinstance(amount, str):
             if amount.lower() == "all":
                 amount = player_balance
+            elif amount.isdigit():
+                amount = int(amount)
             else:
-                await ctx.respond(
-                    embed=discord.Embed(
-                        description="⚠️ Invalid amount.", color=discord.Color.gold()
-                    )
-                )
-                return
-        elif isinstance(amount, int):
-            if amount <= 0:
                 await ctx.respond(
                     embed=discord.Embed(
                         description="⚠️ Invalid amount.", color=discord.Color.gold()
