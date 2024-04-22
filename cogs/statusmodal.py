@@ -21,20 +21,21 @@ class Status(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @discord.slash_command()
+    @discord.slash_command(description="Set your profile status")
     async def updatestatus(self, ctx):
         await ctx.send_modal(StatusUpdateModal())
 
-    @discord.slash_command()
+    @discord.slash_command(description="Set your profile bio")
     async def updatebio(self, ctx):
         await ctx.send_modal(BioUpdateModal())
 
-    @discord.slash_command()
-    async def status(self, ctx, member: discord.Member = None):
-        if member is None:
-            member = ctx.author
+    @discord.slash_command(description="View your profile card")
+    @discord.commands.option(name="user", type=discord.Member, required=False)
+    async def status(self, ctx, user: discord.Member = None):
+        if user is None:
+            user = ctx.author
 
-        user_data = _get_status(member.id)
+        user_data = _get_status(user.id)
         background = Editor("./imgs/sanrio.png")
         
         # fonts
@@ -42,13 +43,13 @@ class Status(commands.Cog):
         status_info = Font.poppins(size=30)
         status_timestamp = Font.poppins(variant="italic", size=20)
         
-        profile_picture = await load_image_async(str(member.display_avatar.url))
+        profile_picture = await load_image_async(str(user.display_avatar.url))
         profile = Editor(profile_picture).resize((150, 150)).circle_image()
         background.paste(profile, (30, 30))
         background.ellipse((30, 30), 150, 150, outline="#e0c3a4", stroke_width=2)
         background.text(
             (200, 50),
-            f"{member.display_name}",
+            f"{user.display_name}",
             font=status_username,
             color="white"
         )
